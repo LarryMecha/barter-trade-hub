@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Items - Digital Soko</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #my-items-list img { object-fit: contain !important; background: #f3f4f6; }
+  </style>
+  <script defer src="my-items.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+  <script src="nav.js" defer></script>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-6 flex-grow">
+    <section class="mb-6 bg-blue-50 border border-blue-200 p-4 rounded">
+      <h2 class="font-semibold mb-1">My Items</h2>
+      <p class="text-sm text-blue-800">This page lists items you have posted. You can delete items, and they will no longer be available for trades.</p>
+    </section>
+    <h2 class="text-3xl font-bold mb-6">My Items</h2>
+
+    <!-- Items Grid -->
+    <div id="my-items-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Items will be injected dynamically from JS -->
+    </div>
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 md:w-2/3">
+        <h2 class="text-xl font-bold mb-4">Edit Item</h2>
+        <form id="editForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input id="editName" class="border rounded px-3 py-2" placeholder="Name" required>
+          <input id="editCategory" class="border rounded px-3 py-2" placeholder="Category">
+          <select id="editCondition" class="border rounded px-3 py-2">
+            <option value="New">New</option>
+            <option value="Like New">Like New</option>
+            <option value="Used">Used</option>
+            <option value="Fair">Fair</option>
+          </select>
+          <input id="editPrice" type="number" min="0" class="border rounded px-3 py-2" placeholder="Price (Ksh)" required>
+          <select id="editType" class="border rounded px-3 py-2">
+            <option value="full">Full Amount</option>
+            <option value="topup">Top-up</option>
+            <option value="barter">Barter Only</option>
+          </select>
+          <textarea id="editDesc" rows="3" class="border rounded px-3 py-2" placeholder="Description"></textarea>
+          <input id="editImg" type="file" accept="image/*" class="border rounded px-3 py-2">
+        </form>
+        <div class="mt-4 flex justify-end gap-3">
+          <button id="cancelEdit" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+          <button id="saveEdit" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

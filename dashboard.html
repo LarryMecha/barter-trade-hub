@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard - Digital Soko</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    #recentItemsGrid img { object-fit: contain !important; background: #f3f4f6; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+  <script src="nav.js" defer></script>
+
+  <!-- Main Content -->
+  <main class="flex-grow p-8 bg-gray-50">
+    <section class="mb-6 bg-blue-50 border border-blue-200 p-4 rounded">
+      <h2 class="font-semibold mb-1">Dashboard</h2>
+      <p class="text-sm text-blue-800">Quick access to your items, posting new listings, and checking barter requests. Recent items from the marketplace are shown below.</p>
+    </section>
+    <h2 class="text-3xl font-bold mb-6" id="welcomeTitle">Welcome 👋</h2>
+
+    <!-- Quick Access Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+      <div class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+        <i data-lucide="box" class="w-10 h-10 text-blue-600 mb-4"></i>
+        <h3 class="text-xl font-semibold">My Items</h3>
+        <p class="text-gray-600">View and manage the items you’ve posted.</p>
+        <a href="my-items.html" class="text-blue-600 mt-3 inline-block">Go →</a>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+        <i data-lucide="plus-circle" class="w-10 h-10 text-green-600 mb-4"></i>
+        <h3 class="text-xl font-semibold">Post New Item</h3>
+        <p class="text-gray-600">Upload items you want to trade or sell.</p>
+        <a href="post-item.html" class="text-green-600 mt-3 inline-block">Post →</a>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow hover:shadow-lg transition">
+        <i data-lucide="refresh-ccw" class="w-10 h-10 text-yellow-600 mb-4"></i>
+        <h3 class="text-xl font-semibold">Barter Requests</h3>
+        <p class="text-gray-600">Check incoming requests from other users.</p>
+        <a href="barter-requests.html" class="text-yellow-600 mt-3 inline-block">View →</a>
+      </div>
+    </div>
+
+    <!-- Recent Items Preview -->
+    <section>
+      <h3 class="text-2xl font-bold mb-4">Recent Items</h3>
+      <div id="recentItemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </section>
+  </main>
+
+  <!-- Trade Modal -->
+  <div id="tradeModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 md:w-2/3">
+      <h2 class="text-xl font-bold mb-4">Propose a Trade</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="font-semibold mb-2">Selected Item</h3>
+          <p id="selectedItem">None</p>
+        </div>
+        <div>
+          <h3 class="font-semibold mb-2">Your Item</h3>
+          <select id="userItem" class="w-full border rounded px-3 py-2">
+            <option value="Phone Case">Phone Case</option>
+            <option value="Headphones">Headphones</option>
+            <option value="Shoes">Shoes</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end space-x-3">
+        <button id="closeModal" class="px-4 py-2 bg-gray-300 rounded">Cancel</button>
+        <button id="confirmTrade" class="px-4 py-2 bg-blue-600 text-white rounded">Send Request</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
+

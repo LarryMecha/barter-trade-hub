@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Messages - Digital Soko</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #messagesBox img { object-fit: contain !important; background: #f3f4f6; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <script src="nav.js" defer></script>
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <section class="mb-6 bg-blue-50 border border-blue-200 p-4 rounded">
+      <h2 class="font-semibold mb-1">How Messaging Works</h2>
+      <p class="text-sm text-blue-800">Select a trade to view the conversation between you and the other party. Send messages to coordinate item exchange and top-up details.</p>
+    </section>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <aside class="md:col-span-1 bg-white rounded shadow p-4">
+        <h3 class="font-bold mb-3">Your Trades</h3>
+        <ul id="tradesList" class="space-y-2"></ul>
+      </aside>
+      <section class="md:col-span-2 bg-white rounded shadow p-4">
+        <div id="chatHeader" class="mb-3 text-gray-700"></div>
+        <div id="messagesBox" class="h-80 overflow-y-auto border rounded p-3 bg-gray-50"></div>
+        <form id="messageForm" class="mt-3 flex gap-2">
+          <input id="messageInput" class="flex-1 border rounded px-3 py-2" placeholder="Type a message" />
+          <button class="px-4 py-2 bg-blue-600 text-white rounded" type="submit">Send</button>
+        </form>
+      </section>
+    </div>
+  </main>
+  <script src="messages.js"></script>
+</body>
+</html>

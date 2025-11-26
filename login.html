@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login - Digital Soko</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <script src="nav.js" defer></script>
+  <main class="max-w-md mx-auto mt-16 bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold mb-4">Login</h1>
+    <form id="loginForm" class="space-y-4">
+      <input type="email" id="email" placeholder="Email" class="w-full border px-3 py-2 rounded" required />
+      <input type="password" id="password" placeholder="Password" class="w-full border px-3 py-2 rounded" required />
+      <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded">Login</button>
+      <p class="text-sm">No account? <a href="register.html" class="text-blue-600">Register</a></p>
+    </form>
+  </main>
+  <script src="login.js"></script>
+</body>
+<html>

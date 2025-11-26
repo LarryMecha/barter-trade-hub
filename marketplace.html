@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Marketplace - Digital Soko</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #itemsGrid img { object-fit: contain !important; background: #f3f4f6; }
+  </style>
+</head>
+<body class="bg-gray-100">
+
+  <script src="nav.js" defer></script>
+
+  <!-- Filters -->
+  <section class="max-w-7xl mx-auto px-6 py-6 bg-white shadow-md rounded-lg mt-6">
+    <h2 class="text-2xl font-bold mb-4">Filter Items</h2>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div>
+        <label class="block text-sm font-semibold mb-2">Trade Type</label>
+        <select id="tradeTypeFilter" class="w-full border px-3 py-2 rounded">
+          <option value="all">All</option>
+          <option value="full">Full Amount</option>
+          <option value="topup">Top-Up</option>
+          <option value="barter">Barter Only</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold mb-2">Condition</label>
+        <select id="conditionFilter" class="w-full border px-3 py-2 rounded">
+          <option value="all">All</option>
+          <option value="New">New</option>
+          <option value="Like New">Like New</option>
+          <option value="Used">Used</option>
+          <option value="Fair">Fair</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold mb-2">Min Price (Ksh)</label>
+        <input type="number" id="minPrice" placeholder="0" class="w-full border px-3 py-2 rounded">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold mb-2">Max Price (Ksh)</label>
+        <input type="number" id="maxPrice" placeholder="100000" class="w-full border px-3 py-2 rounded">
+      </div>
+    </div>
+    <div class="mt-4 flex gap-3">
+      <button id="applyFilters" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Apply Filters</button>
+      <button id="importExternal" class="hidden px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Import External Test Products (Admin)</button>
+    </div>
+  </section>
+
+  <!-- Items Grid -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <section class="mb-6 bg-blue-50 border border-blue-200 p-4 rounded">
+      <h2 class="font-semibold mb-1">Marketplace Usage</h2>
+      <p class="text-sm text-blue-800">Browse items and propose a trade. Select one of your items or choose full top-up. Trade requests are sent to item owners for review.</p>
+    </section>
+    <h2 class="text-2xl font-bold mb-6">Marketplace Items</h2>
+    <div id="itemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </main>
+
+  <!-- Trade Modal -->
+  <div id="tradeModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-11/12 max-w-3xl p-6 relative">
+      <button onclick="closeModal()" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700">✖</button>
+      <h2 class="text-2xl font-bold mb-6">Propose Trade</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Selected Item -->
+        <div class="p-4 border rounded-lg">
+          <h3 class="font-semibold mb-2">Marketplace Item</h3>
+          <img id="modalItemImg" class="w-full h-40 object-contain bg-gray-100 rounded mb-2">
+          <p id="modalItemName" class="font-semibold"></p>
+          <p id="modalItemPrice" class="text-gray-600"></p>
+          <p id="modalItemCondition" class="text-sm text-gray-500"></p>
+        </div>
+
+        <!-- Trade Options -->
+        <div class="p-4 border rounded-lg">
+          <h3 class="font-semibold mb-2">Your Trade Option</h3>
+          <select id="userItemSelect" class="w-full border px-3 py-2 rounded mb-3">
+            <option value="">-- Select Your Item --</option>
+          </select>
+          <button id="fullTopupBtn" class="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            💵 Full Top-Up (Pay Full Price)
+          </button>
+          <div id="userItemPreview" class="mt-3 hidden">
+            <img id="userItemImg" class="w-full h-40 object-contain bg-gray-100 rounded mb-2">
+            <p id="userItemName" class="font-semibold"></p>
+            <p id="userItemPrice" class="text-gray-600"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 text-right">
+        <button onclick="confirmTrade()" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Confirm Trade Request</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="marketplace.js"></script>
+</body>
+</html>
+
+
+
