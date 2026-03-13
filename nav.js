@@ -5,8 +5,12 @@ function getToken() {
 function isAuthed() {
   return !!getToken();
 }
+function isAdmin() {
+  return localStorage.getItem("is_admin") === "1";
+}
 function headerHTML() {
   const authLink = isAuthed() ? `<a href="#" id="logoutLink" class="hover:underline text-red-200">Logout</a>` : `<a href="login.html" class="hover:underline">Login</a>`;
+  const adminLink = isAdmin() ? `<a href="admin.html" class="hover:underline text-yellow-300">Admin</a>` : "";
   return `
   <header class="bg-blue-700 text-white shadow-md">
     <div class="flex items-center justify-between px-6 py-4">
@@ -23,6 +27,7 @@ function headerHTML() {
       <a href="barter-requests.html" class="hover:underline">Barter Requests</a>
       <a href="messages.html" class="hover:underline">Messages</a>
       <a href="settings.html" class="hover:underline">Settings</a>
+      ${adminLink}
       ${authLink}
     </nav>
   </header>`;
@@ -31,7 +36,7 @@ document.body.insertAdjacentHTML("afterbegin", headerHTML());
 const t = document.getElementById("menuToggle");
 if (t) t.addEventListener("click", () => { const m = document.getElementById("menu"); if (m) m.classList.toggle("hidden"); });
 const logout = document.getElementById("logoutLink");
-if (logout) logout.addEventListener("click", e => { e.preventDefault(); localStorage.removeItem(tokenKey); window.location.href = "login.html"; });
+if (logout) logout.addEventListener("click", e => { e.preventDefault(); localStorage.removeItem(tokenKey); localStorage.removeItem("is_admin"); window.location.href = "login.html"; });
 
 // Global modal
 (function () {

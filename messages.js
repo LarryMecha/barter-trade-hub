@@ -35,6 +35,8 @@ async function loadTradeDetail() {
   const msgs = res.ok ? await res.json() : [];
   const box = document.getElementById("messagesBox");
   const header = document.getElementById("chatHeader");
+  const disputeBtn = document.getElementById("dispute-button");
+
   if (activeTradeDetail) {
     const itemTitle = activeTradeDetail.requested_name || `Item ${activeTradeDetail.requested_item_id}`;
     const exchange = activeTradeDetail.offered_name
@@ -44,8 +46,16 @@ async function loadTradeDetail() {
       <div>Trade #${activeTradeId} • ${activeTradeDetail.requester_name} ↔ ${activeTradeDetail.owner_name} • ${itemTitle}</div>
       <div class="mt-1 text-lg">${exchange}</div>
     `;
+
+    // Show dispute button only for Accepted trades
+    if (activeTradeDetail.status === 'Accepted') {
+      disputeBtn.classList.remove("hidden");
+    } else {
+      disputeBtn.classList.add("hidden");
+    }
   } else {
     header.textContent = `Trade #${activeTradeId}`;
+    disputeBtn.classList.add("hidden");
   }
   box.innerHTML = msgs.map(m => {
     const img = activeTradeDetail && (activeTradeDetail.requested_img || "");
@@ -80,3 +90,26 @@ document.getElementById("messageForm").addEventListener("submit", async e => {
 });
 
 loadTrades();
+
+document.getElementById("dispute-button").addEventListener("click", async () => {
+  if (!activeTradeId) return;
+  const reason = prompt("Please enter the reason for your dispute:");
+  if (reason) {
+    const token = localStorage.getItem("token") || "";
+    try {
+      const res = await fetch("/api/disputes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ trade_id: activeTradeId, reason }),
+      });
+      if (res.ok) {
+        showModal("Your dispute has been filed and will be reviewed by an administrator.", "Dispute Filed");
+      } else {
+        const err = await res.json();
+        showModal(err.error || "Failed to file dispute", "Error");
+      }
+    } catch (e) {
+      showModal("An unexpected error occurred", "Error");
+    }
+  }
+});

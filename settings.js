@@ -4,6 +4,7 @@ async function loadProfile() {
   const p = res.ok ? await res.json() : null;
   const box = document.getElementById("profileBox");
   box.textContent = p ? `Name: ${p.name} • Email: ${p.email}` : "Not logged in";
+  if (p) localStorage.setItem("is_admin", p.is_admin ? "1" : "0");
   const nameInput = document.getElementById("name");
   if (p) nameInput.value = p.name;
 }

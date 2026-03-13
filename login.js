@@ -7,5 +7,6 @@ form.addEventListener("submit", async e => {
   if (!res.ok) { showModal("Login failed", "Error"); return; }
   const data = await res.json();
   localStorage.setItem("token", data.token);
+  localStorage.setItem("is_admin", data.user.is_admin ? "1" : "0");
   window.location.href = "dashboard.html";
 });

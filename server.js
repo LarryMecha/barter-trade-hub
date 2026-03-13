@@ -11,7 +11,7 @@ const __dirnamePath = path.resolve();
 const dataDir = path.join(__dirnamePath, "data");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 const db = new Database(path.join(dataDir, "db.sqlite"));
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString("hex");
+const JWT_SECRET = process.env.JWT_SECRET || "digital-soko-dev-secret-12345";
 
 app.use(express.json({ limit: "4mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -60,14 +60,28 @@ db.exec(`
   );
   CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    trade_id INTEGER NOT NULL,
+    trade_id INTEGER,
     sender_user_id INTEGER NOT NULL,
     recipient_user_id INTEGER NOT NULL,
     content TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    FOREIGN KEY(trade_id) REFERENCES trades(id),
-    FOREIGN KEY(sender_user_id) REFERENCES users(id),
-    FOREIGN KEY(recipient_user_id) REFERENCES users(id)
+    is_admin_message INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY(trade_id) REFERENCES trades(id) ON DELETE CASCADE,
+    FOREIGN KEY(sender_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(recipient_user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS disputes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Open',
+    winner_user_id INTEGER,
+    resolution_message TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(trade_id) REFERENCES trades(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(winner_user_id) REFERENCES users(id) ON DELETE SET NULL
   );
 `);
 
@@ -92,6 +106,31 @@ try {
   if (!hasStatus) db.prepare("ALTER TABLE items ADD COLUMN status TEXT NOT NULL DEFAULT 'Available'").run();
   db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_items_external ON items(external_source, external_id)").run();
 } catch {}
+
+try {
+  const disputeCols = db.prepare("PRAGMA table_info(disputes)").all();
+  const hasWinner = disputeCols.some(c => c.name === "winner_user_id");
+  const hasResolution = disputeCols.some(c => c.name === "resolution_message");
+  if (!hasWinner) db.prepare("ALTER TABLE disputes ADD COLUMN winner_user_id INTEGER").run();
+  if (!hasResolution) db.prepare("ALTER TABLE disputes ADD COLUMN resolution_message TEXT").run();
+} catch {}
+
+// Migration: Allow NULL trade_id in messages table
+try {
+  const info = db.prepare("PRAGMA table_info(messages)").all();
+  const tradeIdCol = info.find(c => c.name === 'trade_id');
+  if (tradeIdCol && tradeIdCol.notnull === 1) {
+    console.log("Migrating messages table to allow NULL trade_id...");
+    db.transaction(() => {
+      db.prepare("CREATE TABLE messages_new (id INTEGER PRIMARY KEY AUTOINCREMENT, trade_id INTEGER, sender_user_id INTEGER NOT NULL, recipient_user_id INTEGER NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(trade_id) REFERENCES trades(id) ON DELETE CASCADE, FOREIGN KEY(sender_user_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY(recipient_user_id) REFERENCES users(id) ON DELETE CASCADE)").run();
+      db.prepare("INSERT INTO messages_new SELECT * FROM messages").run();
+      db.prepare("DROP TABLE messages").run();
+      db.prepare("ALTER TABLE messages_new RENAME TO messages").run();
+    })();
+  }
+} catch (e) {
+  console.error("Migration failed:", e);
+}
 
 // Seed admin user
 try {
@@ -380,10 +419,188 @@ app.patch("/api/users/me", auth, (req, res) => {
 });
 
 function requireAdmin(req, res, next) {
+  console.log("requireAdmin check for userId:", req.userId);
   const u = db.prepare("SELECT is_admin FROM users WHERE id=?").get(req.userId);
+  console.log("User from DB:", u);
   if (!u || !u.is_admin) return res.status(403).json({ error: "Forbidden" });
   next();
 }
+
+app.get("/api/admin/stats", auth, requireAdmin, (req, res) => {
+  const totalUsers = db.prepare("SELECT COUNT(*) as count FROM users").get().count;
+  const totalItems = db.prepare("SELECT COUNT(*) as count FROM items").get().count;
+  const totalTrades = db.prepare("SELECT COUNT(*) as count FROM trades").get().count;
+  res.json({ totalUsers, totalItems, totalTrades });
+});
+
+app.get("/api/admin/users", auth, requireAdmin, (req, res) => {
+  const users = db.prepare("SELECT id, name, email, created_at FROM users").all();
+  res.json(users);
+});
+
+app.get("/api/admin/items", auth, requireAdmin, (req, res) => {
+  const items = db.prepare("SELECT i.*, u.name as owner_name FROM items i JOIN users u ON u.id = i.user_id").all();
+  res.json(items);
+});
+
+app.get("/api/admin/trades", auth, requireAdmin, (req, res) => {
+  const sql = `
+    SELECT t.*, 
+      ri.name AS requested_name,
+      oi.name AS offered_name,
+      u_req.name AS requester_name,
+      u_owner.name AS owner_name
+    FROM trades t
+    JOIN items ri ON ri.id = t.requested_item_id
+    LEFT JOIN items oi ON oi.id = t.offered_item_id
+    JOIN users u_req ON u_req.id = t.requester_user_id
+    JOIN users u_owner ON u_owner.id = t.owner_user_id
+    ORDER BY t.created_at DESC`;
+  const trades = db.prepare(sql).all();
+  res.json(trades);
+});
+
+app.post("/api/admin/trades/:id/cancel", auth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { message } = req.body;
+  const t = db.prepare("SELECT * FROM trades WHERE id=?").get(id);
+  if (!t) return res.status(404).json({ error: "NotFound" });
+  
+  const now = new Date().toISOString();
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE trades SET status='Cancelled' WHERE id=?").run(id);
+    if (message) {
+      db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?,?,?,?,?,?)").run(id, req.userId, t.requester_user_id, message, now, 1);
+      db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?,?,?,?,?,?)").run(id, req.userId, t.owner_user_id, message, now, 1);
+    }
+  });
+  tx();
+  res.json({ ok: true });
+});
+
+app.delete("/api/admin/users/:id", auth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const tx = db.transaction(() => {
+    // Delete messages where user is sender or recipient
+    db.prepare("DELETE FROM messages WHERE sender_user_id = ? OR recipient_user_id = ?").run(id, id);
+    // Delete disputes
+    db.prepare("DELETE FROM disputes WHERE user_id = ?").run(id);
+    // Delete trades involving the user
+    db.prepare("DELETE FROM trades WHERE requester_user_id = ? OR owner_user_id = ?").run(id, id);
+    // Delete items owned by the user
+    db.prepare("DELETE FROM items WHERE user_id = ?").run(id);
+    // Finally delete the user
+    db.prepare("DELETE FROM users WHERE id = ?").run(id);
+  });
+  tx();
+  res.json({ ok: true });
+});
+
+app.delete("/api/admin/items/:id", auth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const tx = db.transaction(() => {
+    // Delete trades involving this item
+    db.prepare("DELETE FROM trades WHERE requested_item_id = ? OR offered_item_id = ?").run(id, id);
+    // Delete the item
+    db.prepare("DELETE FROM items WHERE id = ?").run(id);
+  });
+  tx();
+  res.json({ ok: true });
+});
+
+app.post("/api/disputes", auth, (req, res) => {
+  const { trade_id, reason } = req.body;
+  const trade = db.prepare("SELECT * FROM trades WHERE id = ?").get(trade_id);
+  if (!trade) return res.status(404).json({ error: "TradeNotFound" });
+  
+  if (trade.requester_user_id !== req.userId && trade.owner_user_id !== req.userId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  if (trade.status !== 'Accepted') {
+    return res.status(400).json({ error: "Only accepted trades can be disputed" });
+  }
+
+  const existing = db.prepare("SELECT id FROM disputes WHERE trade_id = ? AND user_id = ?").get(trade_id, req.userId);
+  if (existing) return res.status(409).json({ error: "Dispute already exists" });
+
+  const now = new Date().toISOString();
+  db.prepare("INSERT INTO disputes (trade_id, user_id, reason, created_at) VALUES (?, ?, ?, ?)").run(trade_id, req.userId, reason, now);
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/disputes", auth, requireAdmin, (req, res) => {
+  const disputes = db.prepare("SELECT d.*, t.id as trade_id, u.name as user_name, t.requester_user_id, t.owner_user_id FROM disputes d JOIN trades t ON t.id = d.trade_id JOIN users u ON u.id = d.user_id").all();
+  res.json(disputes);
+});
+
+app.patch("/api/admin/disputes/:id/resolve", auth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { message, winner_user_id } = req.body;
+
+  const dispute = db.prepare("SELECT * FROM disputes WHERE id = ?").get(id);
+  if (!dispute) return res.status(404).json({ error: "DisputeNotFound" });
+
+  const trade = db.prepare("SELECT * FROM trades WHERE id = ?").get(dispute.trade_id);
+  if (!trade) return res.status(404).json({ error: "TradeNotFound" });
+
+  const now = new Date().toISOString();
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE disputes SET status='Resolved', winner_user_id=?, resolution_message=? WHERE id=?").run(winner_user_id, message, id);
+    if (message) {
+      db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?, ?, ?, ?, ?, ?)").run(dispute.trade_id, req.userId, trade.requester_user_id, `Dispute resolved. Resolution: ${message}`, now, 1);
+      db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?, ?, ?, ?, ?, ?)").run(dispute.trade_id, req.userId, trade.owner_user_id, `Dispute resolved. Resolution: ${message}`, now, 1);
+    }
+  });
+
+  tx();
+  res.json({ ok: true });
+});
+
+app.post("/api/admin/trades/:id/reverse", auth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { message } = req.body;
+  const trade = db.prepare("SELECT * FROM trades WHERE id = ?").get(id);
+  if (!trade) return res.status(404).json({ error: "TradeNotFound" });
+
+  const now = new Date().toISOString();
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE items SET user_id = ? WHERE id = ?").run(trade.owner_user_id, trade.requested_item_id);
+    if (trade.offered_item_id) {
+      db.prepare("UPDATE items SET user_id = ? WHERE id = ?").run(trade.requester_user_id, trade.offered_item_id);
+    }
+    db.prepare("UPDATE trades SET status = 'Reversed' WHERE id = ?").run(id);
+    if (message) {
+      db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?,?,?,?,?,?)").run(id, req.userId, trade.requester_user_id, message, now, 1);
+      db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?,?,?,?,?,?)").run(id, req.userId, trade.owner_user_id, message, now, 1);
+    }
+  });
+
+  tx();
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/disputes/:id", auth, requireAdmin, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const dispute = db.prepare("SELECT d.*, u.name as winner_name FROM disputes d LEFT JOIN users u ON u.id = d.winner_user_id WHERE d.id = ?").get(id);
+  if (!dispute) return res.status(404).json({ error: "DisputeNotFound" });
+
+  const trade = db.prepare("SELECT t.*, ri.name as requested_item_name, oi.name as offered_item_name, u_req.name as requester_name, u_owner.name as owner_name FROM trades t LEFT JOIN items ri ON ri.id = t.requested_item_id LEFT JOIN items oi ON oi.id = t.offered_item_id JOIN users u_req ON u_req.id = t.requester_user_id JOIN users u_owner ON u_owner.id = t.owner_user_id WHERE t.id = ?").get(dispute.trade_id);
+  if (!trade) return res.status(404).json({ error: "TradeNotFound" });
+
+  const messages = db.prepare("SELECT m.*, u.name as sender_name FROM messages m JOIN users u ON u.id = m.sender_user_id WHERE m.trade_id = ? ORDER BY m.created_at ASC").all(dispute.trade_id);
+
+  res.json({ dispute, trade, messages });
+});
+
+app.post("/api/admin/message", auth, requireAdmin, (req, res) => {
+  const { user_id, content } = req.body;
+  const now = new Date().toISOString();
+  // This is a simplified implementation. In a real-world application, you'd want to
+  // create a new conversation or thread for admin-user communication.
+  db.prepare("INSERT INTO messages (trade_id, sender_user_id, recipient_user_id, content, created_at, is_admin_message) VALUES (?, ?, ?, ?, ?, ?)").run(null, req.userId, user_id, content, now, 1);
+  res.json({ ok: true });
+});
 
 app.get("/api/external/products", auth, async (req, res) => {
   try {
@@ -417,4 +634,10 @@ app.post("/api/admin/import-external", auth, requireAdmin, async (req, res) => {
 });
 
 const port = 8000;
-app.listen(port, () => {});
+app.get("/", (req, res) => {
+  res.redirect("/dashboard.html");
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://127.0.0.1:${port}`);
+});

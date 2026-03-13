@@ -59,8 +59,13 @@ function renderRequests() {
           `}
         </div>
         <div class="flex gap-2">
-          <button class="accept-btn bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" data-index="${index}">Accept</button>
-          <button class="decline-btn bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" data-index="${index}">Decline</button>
+          ${!isAccepted && r.status !== 'Declined' ? `
+            <button class="accept-btn bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" data-index="${index}">Accept</button>
+            <button class="decline-btn bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" data-index="${index}">Decline</button>
+          ` : ''}
+          ${isAccepted ? `
+            <button class="dispute-btn bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700" data-index="${index}">Dispute</button>
+          ` : ''}
           <button class="message-btn bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" data-index="${index}">Message</button>
         </div>
       </div>
@@ -89,6 +94,32 @@ function renderRequests() {
       const i = e.target.dataset.index;
       const r = requests[i];
       openMessageModal(r.id);
+    });
+  });
+
+  document.querySelectorAll(".dispute-btn").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      const i = e.target.dataset.index;
+      const r = requests[i];
+      const reason = prompt("Please enter the reason for your dispute:");
+      if (!reason) return;
+
+      const token = localStorage.getItem("token") || "";
+      try {
+        const res = await fetch("/api/disputes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ trade_id: r.id, reason }),
+        });
+        if (res.ok) {
+          showModal("Your dispute has been filed and will be reviewed by an administrator.", "Dispute Filed");
+        } else {
+          const err = await res.json();
+          showModal(err.error || "Failed to file dispute", "Error");
+        }
+      } catch (e) {
+        showModal("An unexpected error occurred", "Error");
+      }
     });
   });
 }
